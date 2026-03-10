@@ -78,7 +78,7 @@ Directory structure:
 
 Clone the repository
 
-git clone https://github.com/yourusername/team-task-manager.git
+git clone https://github.com/praneethakula/team-task-manager.git
 
 Install dependencies
 
