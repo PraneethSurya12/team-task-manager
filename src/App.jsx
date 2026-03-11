@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "./supabaseClient";
 import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
@@ -44,7 +44,7 @@ function App() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   
   // 🔹 Fetch tasks for logged-in user
-const fetchTasks = async (wsId) => {
+const fetchTasks = useCallback(async (wsId) => {
   if (!wsId) return;
 
   setLoading(true);
@@ -101,7 +101,7 @@ const fetchTasks = async (wsId) => {
   setTasks(data || []);
   setTotalCount(count || 0);
   setLoading(false);
-};
+}, [page, pageSize, searchTerm, filter, sortBy, user]);
 const fetchDashboardStats = async (wsId, userId) => {
   if (!wsId || !userId) return;
 
@@ -142,7 +142,7 @@ const fetchDashboardStats = async (wsId, userId) => {
     mine,
   });
 };
-const fetchNotifications = async () => {
+const fetchNotifications = useCallback(async () => {
   if (!user) return;
 
   const { data } = await supabase
@@ -152,7 +152,7 @@ const fetchNotifications = async () => {
     .order("created_at", { ascending: false });
 
   setNotifications(data || []);
-};
+}, [user]);
 const initializeWorkspace = async (userId) => {
   // 1️⃣ Get membership for current user
   const { data: membership, error } = await supabase
@@ -236,14 +236,19 @@ const addTask = async () => {
 
   // 🔔 Insert Notification
   if (assignedTo) {
+  console.log("Assigned user:", assignedTo);
+
+  const { data: notifData, error: notifError } =
     await supabase.from("notifications").insert([
       {
         user_id: assignedTo,
         message: `You were assigned a new task: ${title}`,
       },
     ]);
-  }
 
+  console.log("Notification result:", notifData);
+  console.log("Notification error:", notifError);
+}
   setMessage("Task created successfully!");
   setTimeout(() => setMessage(""), 3000);
 
@@ -399,14 +404,14 @@ const updateTaskStatus = async (taskId, newStatus) => {
     listener.subscription.unsubscribe();
   };
 
-}, []);
-const refreshData = async () => {
+}, [fetchTasks, fetchNotifications]);
+const refreshData = useCallback(async () => {
   if (!workspaceId || !user) return;
 
   await fetchTasks(workspaceId);
   await fetchDashboardStats(workspaceId, user.id);
   await fetchNotifications();
-};
+}, [workspaceId, user, fetchTasks, fetchNotifications]);
 
 useEffect(() => {
   setPage(0);
@@ -414,11 +419,11 @@ useEffect(() => {
 
 useEffect(() => {
   refreshData();
-}, [workspaceId, page, filter, searchTerm, sortBy]);
+}, [workspaceId, page, filter, searchTerm, sortBy, refreshData]);
 
 useEffect(() => {
   refreshData();
-}, [workspaceId, user]);
+}, [workspaceId, user, refreshData]);
 
 // eslint-disable-next-line react-hooks/exhaustive-deps
 
