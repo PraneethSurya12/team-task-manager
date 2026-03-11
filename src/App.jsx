@@ -13,6 +13,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [workspaceId, setWorkspaceId] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [members, setMembers] = useState([]);
@@ -33,8 +34,8 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [message, setMessage] = useState("");
   const [sortBy, setSortBy] = useState("due_date");
-  
 
+  
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -44,6 +45,8 @@ function App() {
   // 🔹 Fetch tasks for logged-in user
 const fetchTasks = async (wsId) => {
   if (!wsId) return;
+
+  setLoading(true);
 
   const from = page * pageSize;
   const to = from + pageSize - 1;
@@ -96,6 +99,7 @@ const fetchTasks = async (wsId) => {
 
   setTasks(data || []);
   setTotalCount(count || 0);
+  setLoading(false);
 };
 const fetchDashboardStats = async (wsId, userId) => {
   if (!wsId || !userId) return;
@@ -638,11 +642,16 @@ addTask={addTask}
 </div>
 <div className="space-y-4">
 
-  {tasks.length === 0 && (
-    <p className="text-center text-gray-500">
-      No tasks available
-    </p>
+  {loading && (
+  <p className="text-center text-gray-400">Loading tasks...</p>
   )}
+
+  {tasks.length === 0 && (
+  <div className="text-center text-gray-400 py-10">
+    <p className="text-lg">📭 No tasks found</p>
+    <p className="text-sm">Create a new task to get started.</p>
+  </div>
+)}
 
   {tasks.map((task) => (
     <TaskCard
