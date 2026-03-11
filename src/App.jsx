@@ -23,7 +23,8 @@ function App() {
   inProgress: 0,
   completed: 0,
   mine: 0,
-});
+  });
+  const [notifications, setNotifications] = useState([]);
   const pageSize = 5;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -141,6 +142,17 @@ const fetchDashboardStats = async (wsId, userId) => {
     mine,
   });
 };
+const fetchNotifications = async () => {
+  if (!user) return;
+
+  const { data } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  setNotifications(data || []);
+};
 const initializeWorkspace = async (userId) => {
   // 1️⃣ Get membership for current user
   const { data: membership, error } = await supabase
@@ -212,6 +224,15 @@ if (memberError) {
       },
     ])
     .select();
+
+    if (assignedTo) {
+  await supabase.from("notifications").insert([
+  {
+    user_id: assignedTo,
+    message: `You were assigned a new task: ${title}`,
+  },
+]);
+}
 
   if (error) {
     console.error("Task insert error:", error);
@@ -338,6 +359,7 @@ const updateTaskStatus = async (taskId, newStatus) => {
 
     await fetchTasks(wsId);
     await fetchDashboardStats(wsId, currentUser.id);
+    await fetchNotifications();
 
     const channel = supabase
       .channel("realtime-tasks")
@@ -380,6 +402,7 @@ const refreshData = async () => {
 
   await fetchTasks(workspaceId);
   await fetchDashboardStats(workspaceId, user.id);
+  await fetchNotifications();
 };
 
 useEffect(() => {
@@ -598,6 +621,19 @@ const inviteMember = async () => {
   </div>
 )}
 <MemberList members={members} />
+<div className="bg-slate-800 p-4 rounded-xl mb-6">
+  <h2 className="font-semibold mb-2">🔔 Notifications</h2>
+
+  {notifications.length === 0 && (
+    <p className="text-sm text-gray-400">No notifications</p>
+  )}
+
+  {notifications.map((n) => (
+    <p key={n.id} className="text-sm text-gray-300">
+      {n.message}
+    </p>
+  ))}
+</div>
 <Dashboard
   dashboardStats={dashboardStats}
   userRole={userRole}
