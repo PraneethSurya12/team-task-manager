@@ -199,8 +199,10 @@ if (memberError) {
 };
  
   // 🔹 Add Task
-  const addTask = async () => {
-    console.log("addTask triggered");
+ // 🔹 Add Task
+const addTask = async () => {
+  console.log("addTask triggered");
+
   if (!title || !user || !workspaceId) return;
 
   if (userRole === "admin" && !assignedTo) {
@@ -225,21 +227,22 @@ if (memberError) {
     ])
     .select();
 
-    if (assignedTo) {
-  await supabase.from("notifications").insert([
-  {
-    user_id: assignedTo,
-    message: `You were assigned a new task: ${title}`,
-  },
-]);
-}
-
   if (error) {
     console.error("Task insert error:", error);
     return;
   }
 
   console.log("Inserted task:", data);
+
+  // 🔔 Insert Notification
+  if (assignedTo) {
+    await supabase.from("notifications").insert([
+      {
+        user_id: assignedTo,
+        message: `You were assigned a new task: ${title}`,
+      },
+    ]);
+  }
 
   setMessage("Task created successfully!");
   setTimeout(() => setMessage(""), 3000);
