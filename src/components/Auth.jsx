@@ -4,17 +4,24 @@ import { supabase } from "../supabaseClient";
 export default function Auth({ setUser }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+const signUp = async () => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-  const signUp = async () => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    console.log("SIGNUP DATA:", data);
-    console.log("SIGNUP ERROR:", error);
-    if (error) alert(error.message);
-    if (data.user) setUser(data.user);
-  };
+  console.log("SIGNUP DATA:", data);
+  console.log("SIGNUP ERROR:", error);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (data.user) {
+    alert("Signup successful! Please check your email to verify your account.");
+  }
+};
 
   const signIn = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({
