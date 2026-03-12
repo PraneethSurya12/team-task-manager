@@ -45,7 +45,7 @@ function App() {
   
   // 🔹 Fetch tasks for logged-in user
 const fetchTasks = useCallback(async (wsId) => {
-  if (!wsId) return;
+  if (!wsId || !user) return;
 
   setLoading(true);
 
@@ -95,6 +95,7 @@ const fetchTasks = useCallback(async (wsId) => {
 
   if (error) {
     console.error(error);
+    setLoading(false);
     return;
   }
 
@@ -105,42 +106,17 @@ const fetchTasks = useCallback(async (wsId) => {
 const fetchDashboardStats = async (wsId, userId) => {
   if (!wsId || !userId) return;
 
-  const { count: total } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("workspace_id", wsId);
-
-  const { count: pending } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("workspace_id", wsId)
-    .eq("status", "pending");
-
-  const { count: inProgress } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("workspace_id", wsId)
-    .eq("status", "in_progress");
-
-  const { count: completed } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("workspace_id", wsId)
-    .eq("status", "done");
-
-  const { count: mine } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .eq("workspace_id", wsId)
-    .eq("assigned_to", userId);
-
-  setDashboardStats({
-    total,
-    pending,
-    inProgress,
-    completed,
-    mine,
+  const { data, error } = await supabase.rpc("get_dashboard_stats", {
+    ws: wsId,
+    uid: userId,
   });
+
+  if (error) {
+    console.error("Dashboard stats error:", error);
+    return;
+  }
+
+  setDashboardStats(data);
 };
 const fetchNotifications = useCallback(async () => {
   if (!user) return;
@@ -369,27 +345,8 @@ const updateTaskStatus = async (taskId, newStatus) => {
     await fetchDashboardStats(wsId, currentUser.id);
     await fetchNotifications();
 
-    const channel = supabase
-      .channel("realtime-tasks")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `workspace_id=eq.${wsId}`,
-        },
-        () => {
-          fetchTasks(wsId);
-          fetchDashboardStats(wsId, currentUser.id);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   };
+ 
 
   // Listen for login/logout
   const { data: listener } = supabase.auth.onAuthStateChange(
@@ -404,7 +361,7 @@ const updateTaskStatus = async (taskId, newStatus) => {
     listener.subscription.unsubscribe();
   };
 
-}, [fetchTasks, fetchNotifications]);
+}, []);
 const refreshData = useCallback(async () => {
   if (!workspaceId || !user) return;
 
@@ -414,18 +371,38 @@ const refreshData = useCallback(async () => {
 }, [workspaceId, user, fetchTasks, fetchNotifications]);
 
 useEffect(() => {
-  setPage(0);
-}, [filter, searchTerm]);
+  if (!workspaceId || !user) return;
 
+  const channel = supabase
+    .channel("realtime-tasks")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "tasks",
+        filter: `workspace_id=eq.${workspaceId}`,
+      },
+      () => {
+        fetchTasks(workspaceId);
+        fetchDashboardStats(workspaceId, user.id);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+
+}, [workspaceId, user, fetchTasks]);
 useEffect(() => {
-  refreshData();
-}, [workspaceId, page, filter, searchTerm, sortBy, refreshData]);
+  if (!workspaceId || !user) return;
 
-useEffect(() => {
-  refreshData();
-}, [workspaceId, user, refreshData]);
+  fetchTasks(workspaceId);
+  fetchDashboardStats(workspaceId, user.id);
+  fetchNotifications();
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [workspaceId, page, filter, searchTerm, sortBy]);
 
   // 🔹 Start Editing
   const startEditing = (task) => {
@@ -434,28 +411,31 @@ useEffect(() => {
     setEditDescription(task.description);
   };
 
-  // 🔹 Save Edit
-  const saveEdit = async (id) => {
-    await supabase
-  .from("tasks")
-  .update({
-    title: editTitle,
-    description: editDescription,
-  })
-  .eq("id", id);
+// 🔹 Save Edit
+const saveEdit = async (id) => {
+  const { error } = await supabase
+.from("tasks")
+.update({
+  title: editTitle,
+  description: editDescription,
+})
+.eq("id", id);
 
-// 🔥 Insert activity
-await supabase.from("task_activity").insert([
-  {
-    task_id: id,
-    action: "edited task",
-    performed_by: user.email,
-  },
-]);
-
-setEditingId(null);
-    
-  };
+if (!error) {
+  // 🔥 Insert activity
+  await supabase.from("task_activity").insert([
+    {
+      task_id: id,
+      action: "edited task",
+      performed_by: user.email,
+    },
+  ]);
+  
+  setEditingId(null);
+  await refreshData();
+}
+  
+};
   const changePassword = async () => {
   if (!newPassword || newPassword.length < 6) {
     alert("Password must be at least 6 characters");
