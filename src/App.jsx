@@ -250,30 +250,27 @@ const addTask = async () => {
   setDueDate("");
 };
   // 🔹 Delete Task
-  const deleteTask = async (id) => {
+ const deleteTask = async (id) => {
 
-  // delete in database
+  // remove from UI immediately
+  setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+
+  // delete from database
   const { error } = await supabase
     .from("tasks")
     .delete()
     .eq("id", id);
 
   if (error) {
-    console.error(error);
+    console.error("Delete error:", error);
     return;
   }
 
-  // remove from UI instantly
-  setTasks((prev) => prev.filter((task) => task.id !== id));
-
-  // activity log
-  await supabase.from("task_activity").insert([
-    {
-      task_id: id,
-      action: "deleted task",
-      performed_by: user.email,
-    },
-  ]);
+  // update dashboard stats
+  setDashboardStats((prev) => ({
+    ...prev,
+    total: prev.total - 1
+  }));
 
   setMessage("Task deleted successfully");
   setTimeout(() => setMessage(""), 3000);
