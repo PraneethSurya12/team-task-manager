@@ -10,15 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v2
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Login Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/task-manager-app .
-          docker push ${{ secrets.DOCKER_USERNAME }}/task-manager-app
+      - name: Build Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/task-manager-app .
+
+      - name: Push Image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/task-manager-app
