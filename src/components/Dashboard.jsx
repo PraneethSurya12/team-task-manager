@@ -1,5 +1,8 @@
+import AIInput from "./AIInput";
 function Dashboard({ dashboardStats, setFilter }) {
   return (
+    <>
+    <AIInput />
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
 
       <div
@@ -43,6 +46,7 @@ function Dashboard({ dashboardStats, setFilter }) {
       </div>
 
     </div>
+    </>
   );
 }
 

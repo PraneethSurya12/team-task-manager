@@ -24,3 +24,14 @@ dist-ssr
 *.sw?
 
 .env
+node_modules
+backend/node_modules
+react-app/node_modules
+
+db_backup_project
+db_sync_project
+student_app
+schema project
+*.backup
+*.csv
+*.xlsx
